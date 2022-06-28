@@ -8,7 +8,7 @@ const { abi } = require('thor-devkit')
 
 const {Block} = require('./Block.model');
 const {contractABI} = require('./abi')
-const ADDRESS = "0x10363b2eaCc6D5C95Df190A69207dbA5Dbd13840"
+const ADDRESS = "0x82077C6bF254BeA2aEE44E3fF2b5682580B9B9a3"
 
 require('dotenv').config();
 
