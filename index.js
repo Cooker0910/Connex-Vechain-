@@ -1,13 +1,13 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const { mnemonic } = require('thor-devkit');
+const { cry, mnemonic } = require('thor-devkit');
 
 const { Framework } = require('@vechain/connex-framework');
 const { Driver, SimpleNet, SimpleWallet } = require('@vechain/connex-driver')
 const { abi } = require('thor-devkit')
-
-
+const contractABI = require('./abi.json')
+const ADDRESS = "0x691767D45623bF22A0707eE40d90c59837d82857"
 
 require('dotenv').config();
 
@@ -24,22 +24,22 @@ app.use(cors());
 app.listen(process.env.PORT || 5000, async function () {
 
   console.log('now listening for requests on port 5000');
-  /* Get Private Key
-    // const words = process.env.Words;
-    // const wordArray = words.split(" ");
-    // console.log("words", wordArray);
-    // const privateKeyForNFT = mnemonic.derivePrivateKey(wordArray);
-    // console.log("prinvatekye", privateKeyForNFT);
-    // console.log("privateKey", privateKey);
-  */
-
-
+  // const words = process.env.MNEMONIC;
+  // const wordArray = words.split(" ");
+  // const privateKeyForNFT = mnemonic.derivePrivateKey(wordArray);
+  // console.log("prinvatekey", privateKeyForNFT);
 
   const net = new SimpleNet('https://mainnet.veblocks.net/')
-  const driver = await Driver.connect(net)
-  //MP Connex
+  const wallet = new SimpleWallet();
+  wallet.import(process.env.PRIVATE_KEY);
+  const driver = await Driver.connect(net, wallet);
   const connex = new Framework(driver)
-  console.log(connex)
+  const accForMP = connex.thor.account(ADDRESS)
+  const findMethodABI = (abi, method) => abi[abi.findIndex(mthd => mthd.name === method)];
+  
+  console.log(accForMP)
+  const testMethod = accForMP.method(findMethodABI(contractABI, "testABI"))
+  console.log(testMethod)
 
 
 });
