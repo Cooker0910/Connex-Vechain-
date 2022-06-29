@@ -8,7 +8,7 @@ const { abi } = require('thor-devkit')
 
 const {Block} = require('./Block.model');
 const {contractABI} = require('./abi')
-const ADDRESS = "0x82077C6bF254BeA2aEE44E3fF2b5682580B9B9a3"
+const ADDRESS = "0xaa15c9da46b464ddb4ad75f83acab0249c215289"
 
 require('dotenv').config();
 
@@ -98,8 +98,7 @@ app.listen(process.env.PORT || 5000, async function () {
         }
         try {
 
-          console.log("latestBlockNumber", latestBlocknumber);
-          console.log("latestBlockNum", latestBlockNum);
+          console.log("latestBlockInfo", latestBlocknumber, latestBlockNum);
 
           const Filter = connex.thor.filter('event', [{ "address": ADDRESS }]).range({ unit: "block", from: latestBlocknumber + 1, to: latestBlockNum });
           let Offset = 0;
