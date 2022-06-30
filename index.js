@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const Web3 = require('web3');
 const { cry, mnemonic } = require('thor-devkit');
 const { Framework } = require('@vechain/connex-framework');
 const { Driver, SimpleNet, SimpleWallet } = require('@vechain/connex-driver')
@@ -8,12 +9,23 @@ const { abi } = require('thor-devkit')
 
 const {Block} = require('./Block.model');
 const {contractABI} = require('./abi')
+const BridgeEth = require('./BridgeEth.json');
+const web3Eth = new Web3('https://rinkeby.infura.io/v3/0e42c582d71b4ba5a8750f688fce07da');
 const ADDRESS = "0xaa15c9da46b464ddb4ad75f83acab0249c215289"
+const adminPrivKey = '029e1f85161d6b6bcf4c923c718d4bb27f59a9d612bfd8f2b58c4fcb89c395cc'
+const { address: admin } = web3Eth.eth.accounts.wallet.add(adminPrivKey);
 
 require('dotenv').config();
 
 const app = express();
 app.use(cors());
+
+const bridgeEth = new web3Eth.eth.Contract(
+  BridgeEth.abi,
+  BridgeEth.networks['4'].address
+);
+
+console.log(BridgeEth.networks['4'].address, 'asdf')
 
 mongoose.connect(process.env.MONGODB_URL, { useNewUrlParser: true, useUnifiedTopology: true });
 const db = mongoose.connection;
@@ -22,6 +34,7 @@ db.once('open', () => {
 })
 
 let latestBlocknumber = 0;
+let id;
 
 app.listen(process.env.PORT || 5000, async function () {
 
@@ -31,14 +44,14 @@ app.listen(process.env.PORT || 5000, async function () {
   // const privateKeyForNFT = mnemonic.derivePrivateKey(wordArray);
   // console.log("prinvatekey", privateKeyForNFT);
 
-  const net = new SimpleNet('https://mainnet.veblocks.net/')
-  const wallet = new SimpleWallet();
-  wallet.import(process.env.PRIVATE_KEY);
-  const driver = await Driver.connect(net, wallet);
-  const connex = new Framework(driver)
-  const accForMP = connex.thor.account(ADDRESS)
-  const findMethodABI = (abi, method) => abi[abi.findIndex(mthd => mthd.name === method)];
-  const testMethod = accForMP.method(findMethodABI(contractABI, "burn"))
+  // const net = new SimpleNet('https://testnet.veblocks.net/')
+  // const wallet = new SimpleWallet();
+  // wallet.import(process.env.PRIVATE_KEY);
+  // const driver = await Driver.connect(net, wallet);
+  // const connex = new Framework(driver)
+  // const accForMP = connex.thor.account(ADDRESS)
+  // const findMethodABI = (abi, method) => abi[abi.findIndex(mthd => mthd.name === method)];
+  // const testMethod = accForMP.method(findMethodABI(contractABI, "mint"))
 
   const step = 20;
 
@@ -75,6 +88,8 @@ app.listen(process.env.PORT || 5000, async function () {
           Object.values(result).map(function(block) {
             console.log(block)
             latestBlocknumber = block.blockID
+            id = block._id
+            console.log(id, typeof(id), 'id')
           })
         }
       })
@@ -87,10 +102,8 @@ app.listen(process.env.PORT || 5000, async function () {
 
   for (; ;) {
     const blk = connex.thor.block()
-    let latestBlockNum;
-    await blk.get().then(block => {
-      latestBlockNum = block.number;
-    })
+    let latestBlock = await blk.get();
+    let latestBlockNum = latestBlock.number;
     try {
       await new Promise(async (resolve, reject) => {
         if (latestBlockNum <= latestBlocknumber + 1) {
@@ -100,7 +113,10 @@ app.listen(process.env.PORT || 5000, async function () {
 
           console.log("latestBlockInfo", latestBlocknumber, latestBlockNum);
 
-          const Filter = connex.thor.filter('event', [{ "address": ADDRESS }]).range({ unit: "block", from: latestBlocknumber + 1, to: latestBlockNum });
+          const Filter = connex
+                        .thor
+                        .filter('event', [{ "address": "0xbE25bFD67eb51A4B1C21d41A099c33Ee750F522E" }])
+                        .range({ unit: "block", from: latestBlocknumber + 1, to: latestBlockNum });
           let Offset = 0;
           let events = [];
           const decoder = newEventsDecoder(contractABI);
@@ -117,12 +133,46 @@ app.listen(process.env.PORT || 5000, async function () {
           for (let i = 0; i < events.length; i++) {
             console.log("New Event: ", events[i].event)
             if (events[i].event === "Transfer") {
-              console.log(events[i])
-              //do something for Transfer Event
-              // testMethod.transact().comment('Transfer')
-              // .request().then(result => {
-              //   console.log(result);
-              // })
+              if(events[i].decoded.step == 0){
+                const { from, to, amount, date, nonce } = events[i].decoded;
+                console.log(to, amount, nonce)
+                //do something for Transfer Event
+                const tx = bridgeEth.methods.mint(to, amount, nonce);
+                const [gasPrice, gasCost] = await Promise.all([
+                  web3Eth.eth.getGasPrice(),
+                  tx.estimateGas({from: admin}),
+                ]);
+                const data = tx.encodeABI();
+                console.log(data, 'data')
+                const txData = {
+                  from: admin,
+                  to: bridgeEth.options.address,
+                  data,
+                  gas: gasCost,
+                  gasPrice
+                };
+                const updateData = {
+                  blockID: latestBlockNum,
+                }
+                try{
+                  const receipt = await web3Eth.eth.sendTransaction(txData);
+                  Block.findByIdAndUpdate(id, updateData, {new: true}, function(err, res) {
+                    if(err) console.log("error", err)
+                    else console.log("successed!!!")
+                  })
+                  latestBlocknumber = latestBlockNum
+                  console.log(`Transaction hash: ${receipt.transactionHash}`);
+                  console.log(`
+                    Processed transfer:
+                    - from ${from} 
+                    - to ${to} 
+                    - amount ${amount} tokens
+                    - date ${date}
+                  `);
+                } catch(err) {
+                  console.log("error---", err)
+                }
+              }
 
             }
           }
