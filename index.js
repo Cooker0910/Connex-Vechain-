@@ -2,7 +2,6 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const Web3 = require('web3');
-const { cry, mnemonic } = require('thor-devkit');
 const { Framework } = require('@vechain/connex-framework');
 const { Driver, SimpleNet, SimpleWallet } = require('@vechain/connex-driver')
 const { abi } = require('thor-devkit')
@@ -10,9 +9,8 @@ const { abi } = require('thor-devkit')
 const {Block} = require('./Block.model');
 const {contractABI} = require('./abi')
 const BridgeEth = require('./BridgeEth.json');
-const web3Eth = new Web3('https://rinkeby.infura.io/v3/0e42c582d71b4ba5a8750f688fce07da');
-const ADDRESS = "0xaa15c9da46b464ddb4ad75f83acab0249c215289"
-const adminPrivKey = '029e1f85161d6b6bcf4c923c718d4bb27f59a9d612bfd8f2b58c4fcb89c395cc'
+const web3Eth = new Web3(process.env.INFURA_KEY);
+const adminPrivKey = process.env.PRIVATE_KEY
 const { address: admin } = web3Eth.eth.accounts.wallet.add(adminPrivKey);
 
 require('dotenv').config();
@@ -25,30 +23,35 @@ const bridgeEth = new web3Eth.eth.Contract(
   BridgeEth.networks['4'].address
 );
 
-console.log(BridgeEth.networks['4'].address, 'asdf')
-
 mongoose.connect(process.env.MONGODB_URL, { useNewUrlParser: true, useUnifiedTopology: true });
 const db = mongoose.connection;
 db.once('open', () => {
   console.log("Connected to MongoDB")
 })
 
-let latestBlocknumber = 0;
+let latestBlocknumber;
 let id;
 
 app.listen(process.env.PORT || 5000, async function () {
 
-  console.log('now listening for requests on port 5000');
-  // const words = process.env.MNEMONIC;
+  // var Wallet = require('ethereumjs-wallet').default;
+  // var key = Buffer.from('029e1f85161d6b6bcf4c923c718d4bb27f59a9d612bfd8f2b58c4fcb89c395cc', 'hex');
+  // var wallet = await Wallet.fromPrivateKey(key);
+  // const keystore = await wallet.toV3String('password')
+  // console.log(keystore)
+
+
+  // console.log('now listening for requests on port 5000');
+  // const words = process.env.MNEMONIC_1;
   // const wordArray = words.split(" ");
   // const privateKeyForNFT = mnemonic.derivePrivateKey(wordArray);
   // console.log("prinvatekey", privateKeyForNFT);
 
-  // const net = new SimpleNet('https://testnet.veblocks.net/')
-  // const wallet = new SimpleWallet();
-  // wallet.import(process.env.PRIVATE_KEY);
-  // const driver = await Driver.connect(net, wallet);
-  // const connex = new Framework(driver)
+  const net = new SimpleNet('https://testnet.veblocks.net/')
+  const wallet = new SimpleWallet();
+  wallet.import(process.env.PRIVATE_KEY);
+  const driver = await Driver.connect(net, wallet);
+  const connex = new Framework(driver)
   // const accForMP = connex.thor.account(ADDRESS)
   // const findMethodABI = (abi, method) => abi[abi.findIndex(mthd => mthd.name === method)];
   // const testMethod = accForMP.method(findMethodABI(contractABI, "mint"))
@@ -115,7 +118,7 @@ app.listen(process.env.PORT || 5000, async function () {
 
           const Filter = connex
                         .thor
-                        .filter('event', [{ "address": "0xbE25bFD67eb51A4B1C21d41A099c33Ee750F522E" }])
+                        .filter('event', [{ "address": "0x815dCA65757Bd762BAd609bD275Bebd3173f16A1" }])
                         .range({ unit: "block", from: latestBlocknumber + 1, to: latestBlockNum });
           let Offset = 0;
           let events = [];
