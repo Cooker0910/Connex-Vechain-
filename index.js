@@ -6,21 +6,21 @@ const { Framework } = require('@vechain/connex-framework');
 const { Driver, SimpleNet, SimpleWallet } = require('@vechain/connex-driver')
 const { abi } = require('thor-devkit')
 
+require('dotenv').config();
 const {Block} = require('./Block.model');
 const {contractABI} = require('./abi')
 const BridgeEth = require('./BridgeEth.json');
 const web3Eth = new Web3(process.env.INFURA_KEY);
-const adminPrivKey = process.env.PRIVATE_KEY
+const adminPrivKey = process.env.PRIVATE_KEY;
+const bridgeVeAddr = process.env.Bridge_Ve_Addr;
 const { address: admin } = web3Eth.eth.accounts.wallet.add(adminPrivKey);
-
-require('dotenv').config();
 
 const app = express();
 app.use(cors());
 
 const bridgeEth = new web3Eth.eth.Contract(
   BridgeEth.abi,
-  BridgeEth.networks['4'].address
+  "0x25b9B2Aa4fF97ab6c5F0406cCEb8582f416401B5"
 );
 
 mongoose.connect(process.env.MONGODB_URL, { useNewUrlParser: true, useUnifiedTopology: true });
@@ -118,7 +118,7 @@ app.listen(process.env.PORT || 5000, async function () {
 
           const Filter = connex
                         .thor
-                        .filter('event', [{ "address": "0x815dCA65757Bd762BAd609bD275Bebd3173f16A1" }])
+                        .filter('event', [{ "address": bridgeVeAddr }])
                         .range({ unit: "block", from: latestBlocknumber + 1, to: latestBlockNum });
           let Offset = 0;
           let events = [];

@@ -22,10 +22,12 @@ db.once('open', () => {
 const web3Eth = new Web3(process.env.INFURA_KEY);
 const web3_ve = thorify(new Web3(), "https://testnet.veblocks.net/");
 const { address: admin } = web3_ve.eth.accounts.wallet.add(process.env.PRIVATE_KEY_VE);
+
 const bridgeEth = new web3Eth.eth.Contract(
   BridgeEth.abi,
   BridgeEth.networks['4'].address
 );
+
 const bridgeVe = new web3_ve.eth.Contract(
   BridgeVe.abi,
   BridgeVe.networks['5777'].address
@@ -53,16 +55,18 @@ app.listen(process.env.PORT || 5000, async function () {
   }
   
   latestBlocknumber = await getHead();
-  
-  for(; ;) {
-    let latestBlockNum = await web3_ve.eth.getBlockNumber();
-    console.log(latestBlockNum, latestBlocknumber, 'block number')
 
+  let temp = await web3Eth.eth.getBlockNumber();
+  console.log(latestBlocknumber, temp, 'block number')
+
+  try{
+    console.log(1)
     bridgeEth.events.Transfer({
       fromBlock: latestBlocknumber,
       step: 0
     })
     .on('data', async event => {
+      console.log()
       const { from, to, amount, date, nonce } = event.returnValues;
       console.log(from, to, amount, nonce)
       const tx = await bridgeVe.methods.mint(to, amount, nonce);
@@ -83,7 +87,7 @@ app.listen(process.env.PORT || 5000, async function () {
   
       const receipt = await web3_ve.eth.sendTransaction(txData);
       const updateData = {
-        blockID: latestBlockNum,
+        blockID: temp,
       }
       try{
         const receipt = await web3Eth.eth.sendTransaction(txData);
@@ -91,7 +95,7 @@ app.listen(process.env.PORT || 5000, async function () {
           if(err) console.log("error", err)
           else console.log("successed!!!")
         })
-        latestBlocknumber = latestBlockNum
+        latestBlocknumber = temp
         console.log(`Transaction hash: ${receipt.transactionHash}`);
         console.log(`
           Processed transfer:
@@ -112,5 +116,7 @@ app.listen(process.env.PORT || 5000, async function () {
         - date ${date}
       `);
     });
+  } catch(err) {
+    console.log(err, 'here')
   }
 })
