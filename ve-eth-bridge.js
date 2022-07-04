@@ -20,7 +20,7 @@ app.use(cors());
 
 const bridgeEth = new web3Eth.eth.Contract(
   BridgeEth.abi,
-  "0x25b9B2Aa4fF97ab6c5F0406cCEb8582f416401B5"
+  BridgeEth.networks['4'].address
 );
 
 mongoose.connect(process.env.MONGODB_URL, { useNewUrlParser: true, useUnifiedTopology: true });
